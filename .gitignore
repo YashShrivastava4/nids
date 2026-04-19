@@ -1,0 +1,10 @@
+models/
+data/
+__pycache__/
+*.pyc
+*.pkl
+*.pcap
+.env
+*.egg-info/
+dist/
+.DS_Store

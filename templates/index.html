@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NIDS — Network Intrusion Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090e;--s1:#0d1117;--s2:#161b27;--border:#1e2736;
+  --accent:#4f9cf9;--green:#23d18b;--red:#f85149;--yellow:#e3b341;--purple:#bc8cff;--orange:#ff7b54;
+  --text:#cdd9e5;--muted:#546e7a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::after{content:'';position:fixed;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4;}
+
+/* HEADER */
+header{padding:0.8rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;background:var(--s1);}
+.logo{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:1rem;color:var(--accent);}
+.logo em{color:var(--text);font-style:normal;}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;padding:0.2rem 0.6rem;border-radius:20px;letter-spacing:0.08em;text-transform:uppercase;}
+.pill-live{background:rgba(35,209,139,0.15);color:var(--green);border:1px solid rgba(35,209,139,0.3);display:flex;align-items:center;gap:0.4rem;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.pill-acc{background:rgba(79,156,249,0.1);color:var(--accent);border:1px solid rgba(79,156,249,0.2);}
+header .right{margin-left:auto;display:flex;gap:0.6rem;align-items:center;}
+
+/* METRICS ROW */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--border);}
+.mc{padding:1rem 1.5rem;border-right:1px solid var(--border);}
+.mc:last-child{border-right:none;}
+.mc-label{font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;}
+.mc-val{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;font-weight:600;line-height:1;}
+.mc-sub{font-size:0.65rem;color:var(--muted);margin-top:0.3rem;}
+
+/* MAIN LAYOUT */
+.layout{display:grid;grid-template-columns:1fr 340px;flex:1;min-height:0;}
+.left{border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.right-col{display:flex;flex-direction:column;}
+
+/* SECTION HEADER */
+.sh{padding:0.7rem 1.2rem;border-bottom:1px solid var(--border);font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);background:var(--s1);display:flex;align-items:center;gap:0.5rem;}
+.sh span{color:var(--text);}
+
+/* LIVE FEED TABLE */
+.feed-wrap{flex:1;overflow-y:auto;max-height:340px;}
+table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;}
+th{padding:0.5rem 0.8rem;text-align:left;color:var(--muted);font-weight:400;letter-spacing:0.08em;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--s1);z-index:1;}
+td{padding:0.4rem 0.8rem;border-bottom:1px solid rgba(30,39,54,0.6);}
+tr:hover td{background:var(--s2);}
+tr.attack td{background:rgba(248,81,73,0.04);}
+tr.anomaly td{background:rgba(227,179,65,0.04);}
+
+.badge{font-size:0.58rem;padding:0.12rem 0.45rem;border-radius:3px;font-weight:600;letter-spacing:0.05em;}
+.b-benign{background:rgba(35,209,139,0.12);color:var(--green);}
+.b-dos{background:rgba(248,81,73,0.15);color:var(--red);}
+.b-portscan{background:rgba(188,140,255,0.15);color:var(--purple);}
+.b-bruteforce{background:rgba(255,123,84,0.15);color:var(--orange);}
+.b-infiltration{background:rgba(227,179,65,0.15);color:var(--yellow);}
+.b-botnet{background:rgba(248,81,73,0.2);color:var(--red);}
+.conf{color:var(--muted);}
+
+/* CHARTS */
+.chart-area{padding:1rem 1.2rem;}
+canvas{display:block;}
+
+/* RIGHT PANELS */
+.rpanel{padding:1rem 1.2rem;border-bottom:1px solid var(--border);}
+.feat-row{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;}
+.feat-name{font-size:0.65rem;color:var(--muted);width:120px;flex-shrink:0;font-family:'IBM Plex Mono',monospace;}
+.feat-bar-wrap{flex:1;height:6px;background:var(--s2);border-radius:1px;overflow:hidden;}
+.feat-bar{height:100%;background:var(--accent);border-radius:1px;transition:width 0.5s;}
+.feat-val{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--muted);width:36px;text-align:right;}
+
+.cm-wrap{overflow-x:auto;}
+.cm-table{border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:0.6rem;width:100%;}
+.cm-table th{padding:0.3rem 0.4rem;color:var(--muted);font-weight:400;text-align:center;}
+.cm-table td{padding:0.3rem 0.4rem;text-align:center;border:1px solid var(--border);}
+
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* Attack dist donut placeholder */
+#donutCanvas{display:block;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NID<em>S</em></div>
+  <div class="pill pill-live"><div class="live-dot"></div>Live Detection</div>
+  <div class="pill pill-acc" id="acc-pill">Accuracy: —</div>
+  <div class="pill pill-acc" id="mode-pill" style="border-color:rgba(79,156,249,0.2)">Detecting mode...</div>
+  <div class="right">
+    <span style="color:var(--muted);font-size:0.65rem;font-family:'IBM Plex Mono',monospace" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<div class="metrics">
+  <div class="mc"><div class="mc-label">Packets Analyzed</div><div class="mc-val" style="color:var(--accent)" id="m-total">0</div><div class="mc-sub">this session</div></div>
+  <div class="mc"><div class="mc-label">Attacks Detected</div><div class="mc-val" style="color:var(--red)" id="m-attacks">0</div><div class="mc-sub" id="m-attack-pct">0% of traffic</div></div>
+  <div class="mc"><div class="mc-label">Anomalies (IsoForest)</div><div class="mc-val" style="color:var(--yellow)" id="m-anomalies">0</div><div class="mc-sub">unsupervised detection</div></div>
+  <div class="mc"><div class="mc-label">Benign Flows</div><div class="mc-val" style="color:var(--green)" id="m-benign">0</div><div class="mc-sub">normal traffic</div></div>
+  <div class="mc"><div class="mc-label">Model</div><div class="mc-val" style="font-size:0.9rem;color:var(--purple)">RF + ISO</div><div class="mc-sub">RandomForest + IsolationForest</div></div>
+</div>
+
+<div class="layout">
+  <!-- LEFT -->
+  <div class="left">
+    <div class="sh">▸ <span>Live Packet Classification Feed</span></div>
+    <div class="feed-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Size</th><th>Prediction</th><th>Conf</th><th>Anomaly</th></tr></thead>
+        <tbody id="feed-body"></tbody>
+      </table>
+    </div>
+
+    <div class="sh" style="margin-top:0;">▸ <span>Attack Distribution Over Time</span></div>
+    <div class="chart-area">
+      <canvas id="distCanvas" height="130"></canvas>
+    </div>
+
+    <div class="sh">▸ <span>Confusion Matrix (Test Set)</span></div>
+    <div style="padding:1rem 1.2rem;overflow-x:auto;">
+      <div id="cm-wrap"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-col">
+    <div class="sh">▸ <span>Feature Importances</span></div>
+    <div class="rpanel" id="feat-imp"></div>
+
+    <div class="sh">▸ <span>Attack Type Breakdown (Session)</span></div>
+    <div class="rpanel">
+      <canvas id="donutCanvas" height="160"></canvas>
+    </div>
+
+    <div class="sh">▸ <span>Recent Alerts</span></div>
+    <div class="rpanel" style="flex:1;overflow-y:auto;max-height:220px;" id="alert-log">
+      <span style="color:var(--muted);font-size:0.7rem;">No attacks detected yet...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let meta = null;
+let attackCounts = {BENIGN:0,DoS:0,PortScan:0,BruteForce:0,Infiltration:0,Botnet:0};
+let distHistory = []; // [{time, attacks}]
+const alerts = [];
+
+// ── Fetch meta once ──────────────────────────────────────────────────────────
+async function loadMeta(){
+  const r = await fetch('/api/meta');
+  meta = await r.json();
+  document.getElementById('acc-pill').textContent = 'Accuracy: ' + (meta.accuracy*100).toFixed(1)+'%';
+  const modePill = document.getElementById('mode-pill');
+  if(meta.live_mode){
+    modePill.textContent='🟢 LIVE CAPTURE';
+    modePill.style.color='var(--green)';
+    modePill.style.borderColor='rgba(35,209,139,0.3)';
+  } else {
+    modePill.textContent='🟡 SIMULATION';
+    modePill.style.color='var(--yellow)';
+    modePill.style.borderColor='rgba(227,179,65,0.3)';
+  }
+  renderFeatureImportances(meta.feature_importances);
+  renderConfusionMatrix(meta.confusion_matrix, meta.classes);
+}
+
+// ── Feed ─────────────────────────────────────────────────────────────────────
+const BADGE = {
+  BENIGN:'b-benign',DoS:'b-dos',PortScan:'b-portscan',
+  BruteForce:'b-bruteforce',Infiltration:'b-infiltration',Botnet:'b-botnet'
+};
+
+function renderFeed(items, stats){
+  document.getElementById('m-total').textContent = stats.total;
+  document.getElementById('m-attacks').textContent = stats.attacks;
+  document.getElementById('m-anomalies').textContent = stats.anomalies;
+  document.getElementById('m-benign').textContent = stats.benign;
+  const pct = stats.total ? (stats.attacks/stats.total*100).toFixed(1) : 0;
+  document.getElementById('m-attack-pct').textContent = pct+'% of traffic';
+
+  const tbody = document.getElementById('feed-body');
+  tbody.innerHTML = items.slice().reverse().map(p => {
+    const cls = p.label !== 'BENIGN' ? 'attack' : (p.is_anomaly ? 'anomaly' : '');
+    const anom = p.is_anomaly ? `<span style="color:var(--yellow)">⚠ ${p.anomaly_score.toFixed(2)}</span>` : '<span style="color:var(--muted)">—</span>';
+    return `<tr class="${cls}">
+      <td>${p.time}</td><td>${p.src}</td><td>${p.dst}</td>
+      <td>${p.proto}</td><td>${p.pkt_len}B</td>
+      <td><span class="badge ${BADGE[p.label]||'b-benign'}">${p.label}</span></td>
+      <td class="conf">${(p.confidence*100).toFixed(0)}%</td>
+      <td>${anom}</td>
+    </tr>`;
+  }).join('');
+
+  // update attack counts
+  items.forEach(p => { if(attackCounts[p.label] !== undefined) attackCounts[p.label]++; });
+  drawDonut(attackCounts);
+
+  // alerts
+  const newAttacks = items.filter(p => p.label !== 'BENIGN').slice(-3);
+  newAttacks.forEach(p => alerts.unshift(p));
+  if(alerts.length > 20) alerts.length = 20;
+  renderAlerts();
+
+  // dist history
+  distHistory.push({time: new Date().toLocaleTimeString(), attacks: stats.attacks});
+  if(distHistory.length > 40) distHistory.shift();
+  drawDistChart();
+}
+
+function renderAlerts(){
+  const el = document.getElementById('alert-log');
+  if(!alerts.length){ el.innerHTML='<span style="color:var(--muted);font-size:0.7rem;">No attacks...</span>'; return; }
+  el.innerHTML = alerts.slice(0,10).map(a => `
+    <div style="padding:0.4rem 0;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:0.65rem;">
+      <span style="color:var(--muted)">${a.time}</span>
+      <span class="badge ${BADGE[a.label]||''}" style="margin:0 0.4rem;">${a.label}</span>
+      ${a.src} → ${a.dst}
+      ${a.is_anomaly ? '<span style="color:var(--yellow)"> ⚠ anomaly</span>' : ''}
+    </div>`).join('');
+}
+
+// ── Feature importances ───────────────────────────────────────────────────────
+function renderFeatureImportances(imp){
+  if(!imp) return;
+  const sorted = Object.entries(imp).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const max = sorted[0][1];
+  document.getElementById('feat-imp').innerHTML = sorted.map(([k,v])=>`
+    <div class="feat-row">
+      <span class="feat-name">${k}</span>
+      <div class="feat-bar-wrap"><div class="feat-bar" style="width:${(v/max*100).toFixed(1)}%"></div></div>
+      <span class="feat-val">${(v*100).toFixed(1)}%</span>
+    </div>`).join('');
+}
+
+// ── Confusion Matrix ─────────────────────────────────────────────────────────
+function renderConfusionMatrix(cm, classes){
+  if(!cm||!classes) return;
+  const max = Math.max(...cm.flat());
+  let html = '<table class="cm-table"><thead><tr><th></th>';
+  classes.forEach(c => html += `<th>${c.slice(0,5)}</th>`);
+  html += '</tr></thead><tbody>';
+  cm.forEach((row,i) => {
+    html += `<tr><th style="color:var(--text)">${classes[i].slice(0,5)}</th>`;
+    row.forEach((v,j) => {
+      const intensity = max ? v/max : 0;
+      const bg = i===j ? `rgba(35,209,139,${0.1+intensity*0.5})` : (v>0 ? `rgba(248,81,73,${intensity*0.4})` : 'transparent');
+      html += `<td style="background:${bg};color:${v>0?'var(--text)':'var(--muted)'}">${v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('cm-wrap').innerHTML = html;
+}
+
+// ── Donut chart ──────────────────────────────────────────────────────────────
+const COLORS = {BENIGN:'#23d18b',DoS:'#f85149',PortScan:'#bc8cff',BruteForce:'#ff7b54',Infiltration:'#e3b341',Botnet:'#f85149'};
+function drawDonut(counts){
+  const canvas = document.getElementById('donutCanvas');
+  canvas.width = canvas.offsetWidth; canvas.height = 160;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const entries = Object.entries(counts).filter(([,v])=>v>0);
+  const total = entries.reduce((a,[,v])=>a+v,0)||1;
+  const cx=canvas.width/2, cy=75, r=60, ri=38;
+  let angle = -Math.PI/2;
+  entries.forEach(([k,v])=>{
+    const sweep = (v/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+sweep);
+    ctx.closePath(); ctx.fillStyle=COLORS[k]||'#aaa'; ctx.fill();
+    angle+=sweep;
+  });
+  // hole
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#07090e'; ctx.fill();
+  // legend
+  let lx=4, ly=148;
+  entries.forEach(([k,v])=>{
+    ctx.fillStyle=COLORS[k]||'#aaa';
+    ctx.fillRect(lx,ly,8,8);
+    ctx.fillStyle='#546e7a'; ctx.font='9px IBM Plex Mono,monospace';
+    ctx.fillText(`${k} ${(v/total*100).toFixed(0)}%`,lx+11,ly+8);
+    lx+=85; if(lx>canvas.width-80){lx=4;ly+=14;}
+  });
+}
+
+// ── Dist line chart ──────────────────────────────────────────────────────────
+function drawDistChart(){
+  const canvas = document.getElementById('distCanvas');
+  canvas.width = canvas.offsetWidth; canvas.height = 130;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(distHistory.length < 2) return;
+  const vals = distHistory.map(d=>d.attacks);
+  const max = Math.max(...vals,1);
+  const w=canvas.width, h=canvas.height, pad=8;
+  const step = (w-pad*2)/(distHistory.length-1);
+  ctx.beginPath();
+  vals.forEach((v,i)=>{ i===0?ctx.moveTo(pad+i*step,h-pad-(v/max)*(h-pad*2)):ctx.lineTo(pad+i*step,h-pad-(v/max)*(h-pad*2)); });
+  ctx.strokeStyle='#f85149'; ctx.lineWidth=1.5; ctx.stroke();
+  // fill
+  ctx.lineTo(pad+(vals.length-1)*step,h); ctx.lineTo(pad,h); ctx.closePath();
+  ctx.fillStyle='rgba(248,81,73,0.07)'; ctx.fill();
+}
+
+// ── Poll ─────────────────────────────────────────────────────────────────────
+async function poll(){
+  try{
+    const r = await fetch('/api/feed');
+    const d = await r.json();
+    renderFeed(d.feed, d.stats);
+  }catch(e){}
+}
+
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString(); },1000);
+loadMeta();
+setInterval(poll, 1500);
+poll();
+</script>
+</body>
+</html>
